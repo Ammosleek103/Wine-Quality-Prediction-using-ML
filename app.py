@@ -1,40 +1,63 @@
 import streamlit as st
-import joblib
+import pandas as pd
 import numpy as np
+from sklearn.ensemble import ExtraTreesRegressor
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import RobustScaler
+from sklearn.metrics import mean_squared_error, r2_score
+import joblib
 
-# Load the trained model
-model = joblib.load('extra_trees_model.pkl')
+# Title and description
+st.title("Wine Quality Prediction")
+st.write("This app predicts the quality of red wine based on various chemical properties.")
 
-# Define a function to make predictions
-def predict_wine_quality(features):
-    prediction = model.predict([features])
-    return prediction[0]
+# Sidebar for uploading data
+st.sidebar.header("Upload your CSV file")
+uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
 
-# Streamlit app layout
-st.title('Wine Quality Prediction App')
+if uploaded_file is not None:
+    # Load the uploaded dataset
+    data = pd.read_csv(uploaded_file, delimiter=";")
+    st.write("Data Preview:")
+    st.dataframe(data.head())
 
-# Define feature input fields
-st.header('Enter Wine Features:')
-fixed_acidity = st.number_input('Fixed Acidity', value=7.4)
-volatile_acidity = st.number_input('Volatile Acidity', value=0.7)
-citric_acid = st.number_input('Citric Acid', value=0.0)
-residual_sugar = st.number_input('Residual Sugar', value=1.9)
-chlorides = st.number_input('Chlorides', value=0.076)
-free_sulfur_dioxide = st.number_input('Free Sulfur Dioxide', value=11.0)
-total_sulfur_dioxide = st.number_input('Total Sulfur Dioxide', value=34.0)
-density = st.number_input('Density', value=0.9978)
-pH = st.number_input('pH', value=3.51)
-sulphates = st.number_input('Sulphates', value=0.56)
-alcohol = st.number_input('Alcohol', value=9.4)
+    # Feature selection and target variable
+    X = data.drop("quality", axis=1)
+    y = data["quality"]
 
-# Organize the inputs into a list for the model
-features = [
-    fixed_acidity, volatile_acidity, citric_acid, residual_sugar, 
-    chlorides, free_sulfur_dioxide, total_sulfur_dioxide, 
-    density, pH, sulphates, alcohol
-]
+    # Data preprocessing
+    scaler = RobustScaler()
+    X_scaled = scaler.fit_transform(X)
 
-# When the user clicks the 'Predict' button, make the prediction
-if st.button('Predict Wine Quality'):
-    result = predict_wine_quality(features)
-    st.success(f'The predicted wine quality is: {result}')
+    # Train-test split
+    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+    # Model training
+    model = ExtraTreesRegressor(random_state=42)
+    model.fit(X_train, y_train)
+
+    # Save the model to file
+    joblib.dump(model, "wine_quality_model.pkl")
+    st.write("Model trained and saved successfully!")
+
+    # Make predictions
+    y_pred = model.predict(X_test)
+
+    # Display evaluation metrics
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    st.write(f"Mean Squared Error: {mse}")
+    st.write(f"R-squared: {r2}")
+
+    # Feature importance visualization
+    st.write("Feature Importance:")
+    importance = model.feature_importances_
+    feature_importance_df = pd.DataFrame({
+        'Feature': X.columns,
+        'Importance': importance
+    }).sort_values(by='Importance', ascending=False)
+    st.bar_chart(feature_importance_df.set_index('Feature'))
+
+else:
+    st.write("Please upload a CSV file to continue.")
+
