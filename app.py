@@ -11,53 +11,52 @@ import joblib
 st.title("Wine Quality Prediction")
 st.write("This app predicts the quality of red wine based on various chemical properties.")
 
-# Sidebar for uploading data
-st.sidebar.header("Upload your CSV file")
-uploaded_file = st.sidebar.file_uploader("Upload CSV", type=["csv"])
+# Load the dataset directly
+@st.cache_data
+def load_data():
+    data = pd.read_csv("winequality-red.csv", delimiter=";")
+    return data
 
-if uploaded_file is not None:
-    # Load the uploaded dataset
-    data = pd.read_csv(uploaded_file, delimiter=";")
-    st.write("Data Preview:")
-    st.dataframe(data.head())
+# Load data
+data = load_data()
 
-    # Feature selection and target variable
-    X = data.drop("quality", axis=1)
-    y = data["quality"]
+# Show data preview
+st.write("Data Preview:")
+st.dataframe(data.head())
 
-    # Data preprocessing
-    scaler = RobustScaler()
-    X_scaled = scaler.fit_transform(X)
+# Feature selection and target variable
+X = data.drop("quality", axis=1)
+y = data["quality"]
 
-    # Train-test split
-    X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+# Data preprocessing
+scaler = RobustScaler()
+X_scaled = scaler.fit_transform(X)
 
-    # Model training
-    model = ExtraTreesRegressor(random_state=42)
-    model.fit(X_train, y_train)
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-    # Save the model to file
-    joblib.dump(model, "wine_quality_model.pkl")
-    st.write("Model trained and saved successfully!")
+# Model training
+model = ExtraTreesRegressor(random_state=42)
+model.fit(X_train, y_train)
 
-    # Make predictions
-    y_pred = model.predict(X_test)
+# Save the model to file
+joblib.dump(model, "wine_quality_model.pkl")
+st.write("Model trained and saved successfully!")
 
-    # Display evaluation metrics
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    st.write(f"Mean Squared Error: {mse}")
-    st.write(f"R-squared: {r2}")
+# Make predictions
+y_pred = model.predict(X_test)
 
-    # Feature importance visualization
-    st.write("Feature Importance:")
-    importance = model.feature_importances_
-    feature_importance_df = pd.DataFrame({
-        'Feature': X.columns,
-        'Importance': importance
-    }).sort_values(by='Importance', ascending=False)
-    st.bar_chart(feature_importance_df.set_index('Feature'))
+# Display evaluation metrics
+mse = mean_squared_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+st.write(f"Mean Squared Error: {mse}")
+st.write(f"R-squared: {r2}")
 
-else:
-    st.write("Please upload a CSV file to continue.")
-
+# Feature importance visualization
+st.write("Feature Importance:")
+importance = model.feature_importances_
+feature_importance_df = pd.DataFrame({
+    'Feature': X.columns,
+    'Importance': importance
+}).sort_values(by='Importance', ascending=False)
+st.bar_chart(feature_importance_df.set_index('Feature'))
